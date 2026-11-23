@@ -5,7 +5,7 @@ resources:
       tasks:
         - task_key: backfill_labels
           notebook_task:
-            notebook_path: ../src/backfill_labels.py
+            notebook_path: ../src/backfill_labels.ipynb
             base_parameters:
               catalog: ${var.catalog}
 
