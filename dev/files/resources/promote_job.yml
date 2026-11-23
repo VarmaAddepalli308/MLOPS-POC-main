@@ -5,7 +5,7 @@ resources:
       tasks:
         - task_key: promote_model
           notebook_task:
-            notebook_path: ../src/promote_model.py
+            notebook_path: ../src/promote_model.ipynb
             base_parameters:
               source_catalog: stock_demo_test
               target_catalog: ${var.catalog}
