@@ -13,7 +13,7 @@ resources:
       tasks:
         - task_key: ingest_live_data
           notebook_task:
-            notebook_path: ../src/ingest_live.py
+            notebook_path: ../src/ingest_live.ipynb
             base_parameters:
               catalog: ${var.catalog}
 
@@ -21,7 +21,7 @@ resources:
           depends_on:
             - task_key: ingest_live_data
           notebook_task:
-            notebook_path: ../src/features.py
+            notebook_path: ../src/features.ipynb
             base_parameters:
               catalog: ${var.catalog}
               bronze_schema: ${var.schema}
@@ -31,7 +31,7 @@ resources:
           depends_on:
             - task_key: build_features
           notebook_task:
-            notebook_path: ../src/batch_inference.py
+            notebook_path: ../src/batch_inference.ipynb
             base_parameters:
               catalog: ${var.catalog}
 

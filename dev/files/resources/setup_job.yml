@@ -5,6 +5,6 @@ resources:
       tasks:
         - task_key: setup_environment
           notebook_task:
-            notebook_path: ../src/setup_environment.py
+            notebook_path: ../src/setup_environment.ipynb
             base_parameters:
               catalog: ${var.catalog}

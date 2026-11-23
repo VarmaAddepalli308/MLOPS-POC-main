@@ -13,7 +13,7 @@ resources:
           depends_on:
             - task_key: backfill_labels
           notebook_task:
-            notebook_path: ../src/monitor.py
+            notebook_path: ../src/monitor.ipynb
             base_parameters:
               catalog: ${var.catalog}
 
@@ -21,7 +21,7 @@ resources:
           depends_on:
             - task_key: ensure_monitor
           notebook_task:
-            notebook_path: ../src/refresh_monitor.py
+            notebook_path: ../src/refresh_monitor.ipynb
             base_parameters:
               catalog: ${var.catalog}
 
@@ -29,7 +29,7 @@ resources:
           depends_on:
             - task_key: refresh_monitor
           notebook_task:
-            notebook_path: ../src/check_drift.py
+            notebook_path: ../src/check_drift.ipynb
             base_parameters:
               catalog: ${var.catalog}
 

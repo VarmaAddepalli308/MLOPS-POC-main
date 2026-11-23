@@ -8,7 +8,7 @@ resources:
         - task_key: ingest_live_data
           environment_key: stock_env
           notebook_task:
-            notebook_path: ../src/ingest_live.py
+            notebook_path: ../src/ingest_live.ipynb
             base_parameters:
               catalog: ${var.catalog}
 
@@ -17,7 +17,7 @@ resources:
           depends_on:
             - task_key: ingest_live_data
           notebook_task:
-            notebook_path: ../src/features.py
+            notebook_path: ../src/features.ipynb
             base_parameters:
               catalog: ${var.catalog}
               bronze_schema: ${var.schema}
@@ -27,7 +27,7 @@ resources:
           depends_on:
             - task_key: build_features
           notebook_task:
-            notebook_path: ../src/train.py
+            notebook_path: ../src/train.ipynb
             base_parameters:
               catalog: ${var.catalog}
 
@@ -36,7 +36,7 @@ resources:
           depends_on:
             - task_key: train_models
           notebook_task:
-            notebook_path: ../src/evaluate.py
+            notebook_path: ../src/evaluate.ipynb
             base_parameters:
               catalog: ${var.catalog}
               max_validation_rmse: ${var.max_validation_rmse}
@@ -55,7 +55,7 @@ resources:
             - task_key: register_model
               outcome: "true"
           notebook_task:
-            notebook_path: ../src/register.py
+            notebook_path: ../src/register.ipynb
             base_parameters:
               catalog: ${var.catalog}
               min_improvement: ${var.min_improvement}
@@ -74,7 +74,7 @@ resources:
             - task_key: update_serving
               outcome: "true"
           notebook_task:
-            notebook_path: ../src/serve.py
+            notebook_path: ../src/serve.ipynb
             base_parameters:
               catalog: ${var.catalog}
               target: ${bundle.target}
@@ -84,7 +84,7 @@ resources:
           depends_on:
             - task_key: register_model_run
           notebook_task:
-            notebook_path: ../src/batch_inference.py
+            notebook_path: ../src/batch_inference.ipynb
             base_parameters:
               catalog: ${var.catalog}
 

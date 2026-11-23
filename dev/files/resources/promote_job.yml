@@ -24,7 +24,7 @@ resources:
             - task_key: update_serving
               outcome: "true"
           notebook_task:
-            notebook_path: ../src/serve.py
+            notebook_path: ../src/serve.ipynb
             base_parameters:
               catalog: ${var.catalog}
               target: ${bundle.target}

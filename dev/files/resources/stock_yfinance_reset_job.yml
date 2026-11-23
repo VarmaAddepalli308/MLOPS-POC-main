@@ -7,7 +7,7 @@ resources:
       tasks:
         - task_key: replace_bronze_with_yfinance
           notebook_task:
-            notebook_path: ../src/ingest_live.py
+            notebook_path: ../src/ingest_live.ipynb
             base_parameters:
               catalog: ${var.catalog}
               replace_existing_bronze: "true"
@@ -16,7 +16,7 @@ resources:
           depends_on:
             - task_key: replace_bronze_with_yfinance
           notebook_task:
-            notebook_path: ../src/features.py
+            notebook_path: ../src/features.ipynb
             base_parameters:
               catalog: ${var.catalog}
               bronze_schema: ${var.schema}
