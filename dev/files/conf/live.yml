@@ -1,0 +1,15 @@
+# Live (daily end-of-day) data settings. Read by src/ingest_live.py and src/batch_inference.py.
+# Kept in its own file so it does not collide with conf/project.yml.
+live_data:
+  provider: yfinance            # free, no API key. Unofficial source: fine for a POC, use a paid feed for production
+  # Explicit initial universe: the first run downloads up to max_lookback_days of history.
+  symbols: [RELIANCE.NS, TCS.NS, HDFCBANK.NS, ICICIBANK.NS, INFY.NS, BHARTIARTL.NS, SBIN.NS, ITC.NS, LT.NS, KOTAKBANK.NS, HINDUNILVR.NS, AXISBANK.NS, BAJFINANCE.NS, MARUTI.NS, SUNPHARMA.NS, TITAN.NS, ASIANPAINT.NS, HCLTECH.NS, WIPRO.NS, ULTRACEMCO.NS, NTPC.NS, POWERGRID.NS, TATASTEEL.NS, ONGC.NS, COALINDIA.NS]
+  max_symbols: 50
+  universe_table: bronze.live_universe
+  universe_lookback_days: 90
+  overlap_days: 5               # re-download this many days before the last stored day (catches corrections)
+  max_lookback_days: 1100       # never download more than ~3 years in one run
+  auto_adjust: false            # false = raw prices (matches typical unadjusted datasets)
+  min_symbol_success_ratio: 0.5 # fail the run if fewer than this share of symbols returned data
+  price_mismatch_tolerance: 0.02   # fail if provider prices differ from stored prices by > 2% on overlapping days
+  max_staleness_days: 5         # batch_inference only scores symbols whose latest day is within N days of the newest day

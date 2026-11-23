@@ -1,0 +1,74 @@
+name: Databricks Stock MLOps CI/CD
+# DEV validation on PRs -> TEST deploy + train on push -> PROD deploy + promotion (manual approval via environment)
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  validate-dev:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Lint and unit tests (no Databricks needed)
+        run: |
+          pip install pytest ruff numpy pandas pyyaml scikit-learn
+          ruff check .
+          pytest -q
+      - uses: databricks/setup-cli@main
+      - run: databricks bundle validate -t dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+  deploy-test:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - run: databricks bundle validate -t test
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_TEST_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TEST_TOKEN }}
+      - run: databricks bundle deploy -t test
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_TEST_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TEST_TOKEN }}
+      - run: databricks bundle run stock_setup_job -t test
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_TEST_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TEST_TOKEN }}
+      - run: databricks bundle run stock_training_job -t test
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_TEST_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TEST_TOKEN }}
+
+  deploy-prod:
+    needs: deploy-test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - run: databricks bundle validate -t prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
+      - run: databricks bundle deploy -t prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
+      - run: databricks bundle run stock_setup_job -t prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
+      - run: databricks bundle run stock_promote_job -t prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}

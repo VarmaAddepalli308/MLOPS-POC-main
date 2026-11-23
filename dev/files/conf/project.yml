@@ -1,0 +1,66 @@
+# Single place to configure the project. Every notebook reads this file (via src/utils.py);
+# job/bundle parameters override these values only when passed explicitly.
+
+project:
+  name: stock_price_prediction_mlops
+
+# ---- SOURCE DATA ---------------------------------------------------------------
+# Canonical schema written by the Yahoo Finance live ingestion pipeline.
+data:
+  date_col: timestamp
+  symbol_col: symbol
+  open_col: open
+  high_col: high
+  low_col: low
+  close_col: close
+  volume_col: volume
+
+# ---- TABLES (relative to the catalog of the current target) ----------------------
+tables:
+  bronze: bronze.stock_raw
+  silver: silver.stock_ohlcv
+  features: features.stock_features
+  inference_log: serving.stock_inference_log   # predictions + features + label (monitor source)
+  drift: monitoring.stock_feature_drift
+  drift_test_sample: monitoring.stock_drift_test_sample
+
+schemas: [bronze, silver, features, models, serving, monitoring]
+
+# ---- MODEL / TRAINING ------------------------------------------------------------
+model:
+  registered_name: models.stock_price_regressor
+  registered_classifier_name: models.stock_direction_classifier
+  experiment_path: /Shared/stock-price-prediction
+  target_col: target_next_close
+  test_fraction: 0.15
+  validation_fraction: 0.15
+  selection_metric: val_directional_accuracy  # validation-only winner selection; test remains untouched
+  search_n_iter: 10
+  search_cv: 3
+  max_training_rows_pandas: 150000    # most recent whole days that fit; raise for a longer window (slower)
+  random_state: 42
+  min_validation_rmse_improvement: 0.0 # relative; 0.02 = challenger must be 2% better than champion
+
+# ---- EVALUATION GATE (evaluate.py) ------------------------------------------------
+evaluation:
+  max_validation_rmse: null            # absolute ceiling; null = disabled
+  min_directional_accuracy: 0.48        # on the test split
+  min_classifier_test_balanced_accuracy: 0.50
+  require_beat_persistence: true      # OFF: model is NOT compared against "tomorrow = today" (persistence RMSE is still logged for information)
+  persistence_tolerance: 0.02          # relative: model RMSE may be up to 2% above persistence and still pass (0 = strict)
+
+# ---- MONITORING / DRIFT -------------------------------------------------------------
+monitoring:
+  psi_moderate: 0.10
+  psi_high: 0.25
+  ks_statistic_threshold: 0.20         # Lakehouse Monitoring KS test, as in the fraud reference
+  ks_pvalue_threshold: 0.05
+  min_rows_per_window: 50
+  retrain_on_drift: true
+  drift_features: [return_1d, return_5d, return_20d, volatility_5, volatility_20, rsi_14, relative_volume, price_to_sma_20, macd, atr_14_pct]
+
+# ---- SERVING -------------------------------------------------------------------------
+serving:
+  endpoint_name: stock-price-regressor
+  workload_size: Small
+  scale_to_zero: true

@@ -1,0 +1,497 @@
+{
+ "state_version": 2,
+ "cli_version": "1.14.1",
+ "lineage": "782676c0-f094-4534-aca2-cded96c19bd0",
+ "serial": 7,
+ "state": {
+  "resources.jobs.stock_live_job": {
+   "__id__": "649078439665969",
+   "state": {
+    "deployment": {
+     "kind": "BUNDLE",
+     "metadata_file_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/state/metadata.json"
+    },
+    "edit_mode": "UI_LOCKED",
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 4,
+    "name": "[dev 118varma] stock_live_job",
+    "queue": {
+     "enabled": true
+    },
+    "schedule": {
+     "pause_status": "UNPAUSED",
+     "quartz_cron_expression": "0 30 18 ? * MON-FRI",
+     "timezone_id": "America/New_York"
+    },
+    "tags": {
+     "dev": "118varma"
+    },
+    "tasks": [
+     {
+      "depends_on": [
+       {
+        "task_key": "build_features"
+       }
+      ],
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/batch_inference"
+      },
+      "task_key": "batch_inference"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "ingest_live_data"
+       }
+      ],
+      "notebook_task": {
+       "base_parameters": {
+        "bronze_schema": "bronze",
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/features"
+      },
+      "task_key": "build_features"
+     },
+     {
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/ingest_live"
+      },
+      "task_key": "ingest_live_data"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "batch_inference"
+       }
+      ],
+      "run_job_task": {
+       "job_id": 115476137749349
+      },
+      "task_key": "run_monitoring"
+     }
+    ]
+   },
+   "depends_on": [
+    {
+     "node": "resources.jobs.stock_monitoring_job",
+     "label": "${resources.jobs.stock_monitoring_job.id}"
+    }
+   ]
+  },
+  "resources.jobs.stock_monitoring_job": {
+   "__id__": "115476137749349",
+   "state": {
+    "deployment": {
+     "kind": "BUNDLE",
+     "metadata_file_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/state/metadata.json"
+    },
+    "edit_mode": "UI_LOCKED",
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 4,
+    "name": "[dev 118varma] stock_monitoring_job",
+    "queue": {
+     "enabled": true
+    },
+    "tags": {
+     "dev": "118varma"
+    },
+    "tasks": [
+     {
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/backfill_labels"
+      },
+      "task_key": "backfill_labels"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "refresh_monitor"
+       }
+      ],
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/check_drift"
+      },
+      "task_key": "check_drift"
+     },
+     {
+      "condition_task": {
+       "left": "{{tasks.check_drift.values.retrain_required}}",
+       "op": "EQUAL_TO",
+       "right": "true"
+      },
+      "depends_on": [
+       {
+        "task_key": "check_drift"
+       }
+      ],
+      "task_key": "drift_gate"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "backfill_labels"
+       }
+      ],
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/monitor"
+      },
+      "task_key": "ensure_monitor"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "ensure_monitor"
+       }
+      ],
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/refresh_monitor"
+      },
+      "task_key": "refresh_monitor"
+     },
+     {
+      "depends_on": [
+       {
+        "outcome": "true",
+        "task_key": "drift_gate"
+       }
+      ],
+      "run_job_task": {
+       "job_id": 583590750932717
+      },
+      "task_key": "trigger_retraining"
+     }
+    ]
+   },
+   "depends_on": [
+    {
+     "node": "resources.jobs.stock_training_job",
+     "label": "${resources.jobs.stock_training_job.id}"
+    }
+   ]
+  },
+  "resources.jobs.stock_promote_job": {
+   "__id__": "156673123359973",
+   "state": {
+    "deployment": {
+     "kind": "BUNDLE",
+     "metadata_file_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/state/metadata.json"
+    },
+    "edit_mode": "UI_LOCKED",
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 4,
+    "name": "[dev 118varma] stock_promote_job",
+    "queue": {
+     "enabled": true
+    },
+    "tags": {
+     "dev": "118varma"
+    },
+    "tasks": [
+     {
+      "notebook_task": {
+       "base_parameters": {
+        "min_improvement": "",
+        "source_catalog": "stock_demo_test",
+        "target_catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/promote_model"
+      },
+      "task_key": "promote_model"
+     },
+     {
+      "condition_task": {
+       "left": "{{tasks.promote_model.values.promoted}}",
+       "op": "EQUAL_TO",
+       "right": "true"
+      },
+      "depends_on": [
+       {
+        "task_key": "promote_model"
+       }
+      ],
+      "task_key": "update_serving"
+     },
+     {
+      "depends_on": [
+       {
+        "outcome": "true",
+        "task_key": "update_serving"
+       }
+      ],
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo",
+        "target": "dev"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/serve"
+      },
+      "task_key": "update_serving_run"
+     }
+    ]
+   }
+  },
+  "resources.jobs.stock_setup_job": {
+   "__id__": "858748492978835",
+   "state": {
+    "deployment": {
+     "kind": "BUNDLE",
+     "metadata_file_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/state/metadata.json"
+    },
+    "edit_mode": "UI_LOCKED",
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 4,
+    "name": "[dev 118varma] stock_setup_job",
+    "queue": {
+     "enabled": true
+    },
+    "tags": {
+     "dev": "118varma"
+    },
+    "tasks": [
+     {
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/setup_environment"
+      },
+      "task_key": "setup_environment"
+     }
+    ]
+   }
+  },
+  "resources.jobs.stock_training_job": {
+   "__id__": "583590750932717",
+   "state": {
+    "deployment": {
+     "kind": "BUNDLE",
+     "metadata_file_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/state/metadata.json"
+    },
+    "edit_mode": "UI_LOCKED",
+    "environments": [
+     {
+      "environment_key": "stock_env",
+      "spec": {
+       "dependencies": [
+        "xgboost==2.1.4",
+        "lightgbm==4.5.0",
+        "catboost==1.2.8",
+        "yfinance",
+        "databricks-feature-engineering"
+       ],
+       "environment_version": "2"
+      }
+     }
+    ],
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 4,
+    "name": "[dev 118varma] stock_training_job",
+    "queue": {
+     "enabled": true
+    },
+    "tags": {
+     "dev": "118varma"
+    },
+    "tasks": [
+     {
+      "depends_on": [
+       {
+        "task_key": "register_model_run"
+       }
+      ],
+      "environment_key": "stock_env",
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/batch_inference"
+      },
+      "task_key": "batch_inference"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "ingest_live_data"
+       }
+      ],
+      "environment_key": "stock_env",
+      "notebook_task": {
+       "base_parameters": {
+        "bronze_schema": "bronze",
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/features"
+      },
+      "task_key": "build_features"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "train_models"
+       }
+      ],
+      "environment_key": "stock_env",
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo",
+        "max_validation_rmse": ""
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/evaluate"
+      },
+      "task_key": "evaluate_model"
+     },
+     {
+      "environment_key": "stock_env",
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/ingest_live"
+      },
+      "task_key": "ingest_live_data"
+     },
+     {
+      "condition_task": {
+       "left": "{{tasks.evaluate_model.values.eval_passed}}",
+       "op": "EQUAL_TO",
+       "right": "true"
+      },
+      "depends_on": [
+       {
+        "task_key": "evaluate_model"
+       }
+      ],
+      "task_key": "register_model"
+     },
+     {
+      "depends_on": [
+       {
+        "outcome": "true",
+        "task_key": "register_model"
+       }
+      ],
+      "environment_key": "stock_env",
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo",
+        "min_improvement": ""
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/register"
+      },
+      "task_key": "register_model_run"
+     },
+     {
+      "depends_on": [
+       {
+        "task_key": "build_features"
+       }
+      ],
+      "environment_key": "stock_env",
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/train"
+      },
+      "task_key": "train_models"
+     },
+     {
+      "condition_task": {
+       "left": "{{tasks.register_model_run.values.promoted}}",
+       "op": "EQUAL_TO",
+       "right": "true"
+      },
+      "depends_on": [
+       {
+        "task_key": "register_model_run"
+       }
+      ],
+      "task_key": "update_serving"
+     },
+     {
+      "depends_on": [
+       {
+        "outcome": "true",
+        "task_key": "update_serving"
+       }
+      ],
+      "environment_key": "stock_env",
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo",
+        "target": "dev"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/serve"
+      },
+      "task_key": "update_serving_run"
+     }
+    ]
+   }
+  },
+  "resources.jobs.stock_yfinance_reset_job": {
+   "__id__": "376075313201468",
+   "state": {
+    "deployment": {
+     "kind": "BUNDLE",
+     "metadata_file_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/state/metadata.json"
+    },
+    "edit_mode": "UI_LOCKED",
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 4,
+    "name": "[dev 118varma] stock_yfinance_reset_job",
+    "queue": {
+     "enabled": true
+    },
+    "tags": {
+     "dev": "118varma"
+    },
+    "tasks": [
+     {
+      "depends_on": [
+       {
+        "task_key": "replace_bronze_with_yfinance"
+       }
+      ],
+      "notebook_task": {
+       "base_parameters": {
+        "bronze_schema": "bronze",
+        "catalog": "stock_demo"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/features"
+      },
+      "task_key": "rebuild_silver_and_features"
+     },
+     {
+      "notebook_task": {
+       "base_parameters": {
+        "catalog": "stock_demo",
+        "replace_existing_bronze": "true"
+       },
+       "notebook_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files/src/ingest_live"
+      },
+      "task_key": "replace_bronze_with_yfinance"
+     }
+    ]
+   }
+  }
+ }
+}

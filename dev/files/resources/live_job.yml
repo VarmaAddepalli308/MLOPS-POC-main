@@ -1,0 +1,43 @@
+resources:
+  jobs:
+    stock_live_job:
+      name: stock_live_job
+
+      # Runs at 18:30 New York time, Monday-Friday, after the regular US market close.
+      # Databricks development mode may pause schedules automatically; enable in deployed test/prod targets.
+      schedule:
+        quartz_cron_expression: "0 30 18 ? * MON-FRI"
+        timezone_id: America/New_York
+        pause_status: UNPAUSED
+
+      tasks:
+        - task_key: ingest_live_data
+          notebook_task:
+            notebook_path: ../src/ingest_live.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: build_features
+          depends_on:
+            - task_key: ingest_live_data
+          notebook_task:
+            notebook_path: ../src/features.py
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: ${var.schema}
+
+        # Predict the next trading day for every fresh symbol with the champion model
+        - task_key: batch_inference
+          depends_on:
+            - task_key: build_features
+          notebook_task:
+            notebook_path: ../src/batch_inference.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        # back-fill yesterday's real close -> refresh monitor -> drift check -> (optional) retrain
+        - task_key: run_monitoring
+          depends_on:
+            - task_key: batch_inference
+          run_job_task:
+            job_id: ${resources.jobs.stock_monitoring_job.id}

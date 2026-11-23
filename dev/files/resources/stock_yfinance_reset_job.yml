@@ -1,0 +1,22 @@
+resources:
+  jobs:
+    stock_yfinance_reset_job:
+      name: stock_yfinance_reset_job
+      # Run ONCE to replace old Parquet-derived Bronze data with Yahoo Finance history.
+      # This intentionally overwrites the existing stock_raw table; do not schedule it.
+      tasks:
+        - task_key: replace_bronze_with_yfinance
+          notebook_task:
+            notebook_path: ../src/ingest_live.py
+            base_parameters:
+              catalog: ${var.catalog}
+              replace_existing_bronze: "true"
+
+        - task_key: rebuild_silver_and_features
+          depends_on:
+            - task_key: replace_bronze_with_yfinance
+          notebook_task:
+            notebook_path: ../src/features.py
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: ${var.schema}

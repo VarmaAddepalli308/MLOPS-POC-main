@@ -1,0 +1,49 @@
+resources:
+  jobs:
+    stock_monitoring_job:
+      name: stock_monitoring_job
+      tasks:
+        - task_key: backfill_labels
+          notebook_task:
+            notebook_path: ../src/backfill_labels.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: ensure_monitor
+          depends_on:
+            - task_key: backfill_labels
+          notebook_task:
+            notebook_path: ../src/monitor.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: refresh_monitor
+          depends_on:
+            - task_key: ensure_monitor
+          notebook_task:
+            notebook_path: ../src/refresh_monitor.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: check_drift
+          depends_on:
+            - task_key: refresh_monitor
+          notebook_task:
+            notebook_path: ../src/check_drift.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: drift_gate
+          depends_on:
+            - task_key: check_drift
+          condition_task:
+            op: EQUAL_TO
+            left: "{{tasks.check_drift.values.retrain_required}}"
+            right: "true"
+
+        - task_key: trigger_retraining
+          depends_on:
+            - task_key: drift_gate
+              outcome: "true"
+          run_job_task:
+            job_id: ${resources.jobs.stock_training_job.id}

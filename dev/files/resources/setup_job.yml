@@ -1,0 +1,10 @@
+resources:
+  jobs:
+    stock_setup_job:
+      name: stock_setup_job
+      tasks:
+        - task_key: setup_environment
+          notebook_task:
+            notebook_path: ../src/setup_environment.py
+            base_parameters:
+              catalog: ${var.catalog}

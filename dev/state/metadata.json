@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "config": {
+    "bundle": {
+      "name": "stock_price_prediction_mlops",
+      "target": "dev",
+      "mode": "development",
+      "git": {
+        "bundle_root_path": "."
+      }
+    },
+    "workspace": {
+      "file_path": "/Workspace/Users/118varma@gmail.com/.bundle/stock_price_prediction_mlops/dev/files"
+    },
+    "resources": {
+      "jobs": {
+        "stock_live_job": {
+          "id": "649078439665969",
+          "relative_path": "resources/live_job.yml"
+        },
+        "stock_monitoring_job": {
+          "id": "115476137749349",
+          "relative_path": "resources/monitoring_job.yml"
+        },
+        "stock_promote_job": {
+          "id": "156673123359973",
+          "relative_path": "resources/promote_job.yml"
+        },
+        "stock_setup_job": {
+          "id": "858748492978835",
+          "relative_path": "resources/setup_job.yml"
+        },
+        "stock_training_job": {
+          "id": "583590750932717",
+          "relative_path": "resources/training_job.yml"
+        },
+        "stock_yfinance_reset_job": {
+          "id": "376075313201468",
+          "relative_path": "resources/stock_yfinance_reset_job.yml"
+        }
+      }
+    },
+    "presets": {
+      "source_linked_deployment": false
+    }
+  },
+  "extra": {}
+}
