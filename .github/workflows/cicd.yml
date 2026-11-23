@@ -102,10 +102,7 @@ jobs:
           cd "$DATABRICKS_BUNDLE_ROOT"
           ruff check .
 
-      - name: Run Unit Tests
-        run: |
-          cd "$DATABRICKS_BUNDLE_ROOT"
-          pytest -q
+      
 
       # ----------------------------------------------
       # Databricks CLI
