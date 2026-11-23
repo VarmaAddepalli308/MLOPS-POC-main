@@ -120,15 +120,6 @@ jobs:
         run: |
           databricks bundle deploy -t dev
 
-      - name: Run DEV Setup Job
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          databricks bundle run stock_setup_job -t dev
-
-      - name: Run DEV Training Job
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          databricks bundle run stock_training_job -t dev
 
 
   # ==================================================
