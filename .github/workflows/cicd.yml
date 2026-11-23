@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Select Environment"
+        description: "Select deployment environment"
         required: true
         type: choice
         options:
@@ -27,17 +27,16 @@ concurrency:
 
 env:
   DATABRICKS_HOST: https://dbc-01667042-21c0.cloud.databricks.com
-  DATABRICKS_BUNDLE_ROOT: ${{ github.workspace }}
 
 jobs:
 
-  # ==========================================
-  # 1. DEV - VALIDATE AND DEPLOY
-  # ==========================================
+  # ==================================================
+  # 1. DEV - VALIDATION AND DEPLOYMENT
+  # ==================================================
 
   deploy-dev:
 
-    name: DEV - Validate and Deploy
+    name: DEV - Code Validation and Deploy
 
     if: >
       github.event_name == 'pull_request' ||
@@ -48,23 +47,45 @@ jobs:
 
     environment: dev
 
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
     steps:
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Bundle Root
-        run: |
-          echo "Checking Databricks bundle root..."
-          pwd
-          ls -la
+      # ----------------------------------------------
+      # Find Databricks Bundle Root
+      # ----------------------------------------------
 
-          if [ ! -f "databricks.yml" ]; then
-            echo "ERROR: databricks.yml not found!"
+      - name: Find Databricks Bundle Root
+        shell: bash
+        run: |
+          echo "Searching for databricks.yml..."
+
+          BUNDLE_FILE=$(find "$GITHUB_WORKSPACE/dev" \
+            -type f \
+            -name "databricks.yml" \
+            -print -quit)
+
+          if [ -z "$BUNDLE_FILE" ]; then
+            echo "ERROR: databricks.yml not found inside dev!"
+            echo "Available files:"
+            find "$GITHUB_WORKSPACE/dev" -maxdepth 6 -type f
             exit 1
           fi
 
-          echo "Databricks bundle root found."
+          BUNDLE_ROOT=$(dirname "$BUNDLE_FILE")
+
+          echo "Bundle file: $BUNDLE_FILE"
+          echo "Bundle root: $BUNDLE_ROOT"
+
+          echo "DATABRICKS_BUNDLE_ROOT=$BUNDLE_ROOT" >> "$GITHUB_ENV"
+
+      # ----------------------------------------------
+      # Python Setup and Testing
+      # ----------------------------------------------
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -78,11 +99,17 @@ jobs:
 
       - name: Run Ruff
         run: |
+          cd "$DATABRICKS_BUNDLE_ROOT"
           ruff check .
 
       - name: Run Unit Tests
         run: |
+          cd "$DATABRICKS_BUNDLE_ROOT"
           pytest -q
+
+      # ----------------------------------------------
+      # Databricks CLI
+      # ----------------------------------------------
 
       - name: Setup Databricks CLI
         uses: databricks/setup-cli@main
@@ -90,38 +117,30 @@ jobs:
       - name: Validate DEV Bundle
         run: |
           databricks bundle validate -t dev
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Deploy DEV Bundle
         if: github.event_name == 'workflow_dispatch'
         run: |
           databricks bundle deploy -t dev
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Run DEV Setup Job
         if: github.event_name == 'workflow_dispatch'
         run: |
           databricks bundle run stock_setup_job -t dev
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Run DEV Training Job
         if: github.event_name == 'workflow_dispatch'
         run: |
           databricks bundle run stock_training_job -t dev
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
 
-  # ==========================================
-  # 2. TEST - VALIDATE AND DEPLOY
-  # ==========================================
+  # ==================================================
+  # 2. TEST - VALIDATION AND DEPLOYMENT
+  # ==================================================
 
   deploy-test:
 
-    name: TEST - Validate and Deploy
+    name: TEST - Validate and Train
 
     if: >
       github.event_name == 'workflow_dispatch' &&
@@ -131,23 +150,41 @@ jobs:
 
     environment: test
 
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
     steps:
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Bundle Root
-        run: |
-          echo "Checking Databricks bundle root..."
-          pwd
-          ls -la
+      # ----------------------------------------------
+      # Find Databricks Bundle Root
+      # ----------------------------------------------
 
-          if [ ! -f "databricks.yml" ]; then
-            echo "ERROR: databricks.yml not found!"
+      - name: Find Databricks Bundle Root
+        shell: bash
+        run: |
+          echo "Searching for databricks.yml..."
+
+          BUNDLE_FILE=$(find "$GITHUB_WORKSPACE/dev" \
+            -type f \
+            -name "databricks.yml" \
+            -print -quit)
+
+          if [ -z "$BUNDLE_FILE" ]; then
+            echo "ERROR: databricks.yml not found inside dev!"
+            echo "Available files:"
+            find "$GITHUB_WORKSPACE/dev" -maxdepth 6 -type f
             exit 1
           fi
 
-          echo "Databricks bundle root found."
+          BUNDLE_ROOT=$(dirname "$BUNDLE_FILE")
+
+          echo "Bundle file: $BUNDLE_FILE"
+          echo "Bundle root: $BUNDLE_ROOT"
+
+          echo "DATABRICKS_BUNDLE_ROOT=$BUNDLE_ROOT" >> "$GITHUB_ENV"
 
       - name: Setup Databricks CLI
         uses: databricks/setup-cli@main
@@ -155,35 +192,27 @@ jobs:
       - name: Validate TEST Bundle
         run: |
           databricks bundle validate -t test
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Deploy TEST Bundle
         run: |
           databricks bundle deploy -t test
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Run TEST Setup Job
         run: |
           databricks bundle run stock_setup_job -t test
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Run TEST Training Job
         run: |
           databricks bundle run stock_training_job -t test
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
 
-  # ==========================================
-  # 3. PROD - VALIDATE AND DEPLOY
-  # ==========================================
+  # ==================================================
+  # 3. PROD - VALIDATION AND DEPLOYMENT
+  # ==================================================
 
   deploy-prod:
 
-    name: PROD - Validate and Deploy
+    name: PROD - Validate and Promote Model
 
     if: >
       github.event_name == 'workflow_dispatch' &&
@@ -191,25 +220,43 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    environment: production
+    environment: prod
+
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
     steps:
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Bundle Root
-        run: |
-          echo "Checking Databricks bundle root..."
-          pwd
-          ls -la
+      # ----------------------------------------------
+      # Find Databricks Bundle Root
+      # ----------------------------------------------
 
-          if [ ! -f "databricks.yml" ]; then
-            echo "ERROR: databricks.yml not found!"
+      - name: Find Databricks Bundle Root
+        shell: bash
+        run: |
+          echo "Searching for databricks.yml..."
+
+          BUNDLE_FILE=$(find "$GITHUB_WORKSPACE/dev" \
+            -type f \
+            -name "databricks.yml" \
+            -print -quit)
+
+          if [ -z "$BUNDLE_FILE" ]; then
+            echo "ERROR: databricks.yml not found inside dev!"
+            echo "Available files:"
+            find "$GITHUB_WORKSPACE/dev" -maxdepth 6 -type f
             exit 1
           fi
 
-          echo "Databricks bundle root found."
+          BUNDLE_ROOT=$(dirname "$BUNDLE_FILE")
+
+          echo "Bundle file: $BUNDLE_FILE"
+          echo "Bundle root: $BUNDLE_ROOT"
+
+          echo "DATABRICKS_BUNDLE_ROOT=$BUNDLE_ROOT" >> "$GITHUB_ENV"
 
       - name: Setup Databricks CLI
         uses: databricks/setup-cli@main
@@ -217,23 +264,15 @@ jobs:
       - name: Validate PROD Bundle
         run: |
           databricks bundle validate -t prod
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Deploy PROD Bundle
         run: |
           databricks bundle deploy -t prod
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Run PROD Setup Job
         run: |
           databricks bundle run stock_setup_job -t prod
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Promote Champion Model
         run: |
           databricks bundle run stock_promote_job -t prod
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
